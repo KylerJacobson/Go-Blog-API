@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-type PostsRepoistory interface {
-	Get() (*post_models.Post, error)
+type PostsRepository interface {
+	GetRecentPosts() ([]post_models.Post, error)
 }
 
 type postsRepository struct {
@@ -22,7 +22,7 @@ func New(conn pgx.Conn) *postsRepository {
 	}
 }
 
-func (repository *postsRepository) Get() (*post_models.Post, error) {
+func (repository *postsRepository) GetRecentPosts() ([]post_models.Post, error) {
 	fmt.Println("getting posts from the database")
 
 	rows, err := repository.conn.Query(
@@ -33,7 +33,13 @@ func (repository *postsRepository) Get() (*post_models.Post, error) {
 	}
 	defer rows.Close()
 
-	posts, _ := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.Post])
-	fmt.Printf("postId: %d postBlob %s ", posts[0].PostId, posts[0].BlobName)
-	return nil,nil
+	posts, err := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.Post])
+	if err != nil {
+		fmt.Println(err)
+		return posts, err
+	}
+	if len(posts) > 0 {
+		fmt.Printf("postId: %d postBlob %s ", posts[0].PostId, posts[0].Title)
+	}
+	return posts,nil
 }

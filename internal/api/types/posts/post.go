@@ -5,10 +5,11 @@ import (
 )
 
 type Post struct {
-	Id          int       `json:"id" db:"id"`
 	PostId      int       `json:"postId" db:"post_id"`
-	BlobName    string    `json:"blobName" db:"blob_name"`
-	ContentType string    `json:"contentType" db:"content_type"`
+	Title       string    `json:"title" db:"title"` 
+	Content     string    `json:"content" db:"content"`
+	UserId      int       `json:"userId" db:"user_id"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
 	Restricted  bool      `json:"restricted" db:"restricted"`
 }

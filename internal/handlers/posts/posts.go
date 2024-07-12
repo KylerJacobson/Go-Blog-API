@@ -9,30 +9,30 @@ import (
 )
 
 type PostsApi interface {
-	Get(w http.ResponseWriter, r *http.Request)
+	GetRecentPosts(w http.ResponseWriter, r *http.Request)
 }
 
 type postsApi struct {
-	postsRepository posts.PostsRepoistory
+	postsRepository posts.PostsRepository
 }
 
-func New(postsRepo posts.PostsRepoistory) *postsApi {
+func New(postsRepo posts.PostsRepository) *postsApi {
 	return &postsApi{
 		postsRepository: postsRepo,
 	}
 }
 
-func (postsApi *postsApi) Get(w http.ResponseWriter, r *http.Request) {
+func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Getting posts")
-	post, err := postsApi.postsRepository.Get()
+	posts, err := postsApi.postsRepository.GetRecentPosts()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
 		return
 	}
-	b, _ := json.Marshal(post)
+	b, _ := json.Marshal(posts)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
-	
+
 }

@@ -10,6 +10,7 @@ import (
 
 type PostsRepository interface {
 	GetRecentPosts() ([]post_models.Post, error)
+	GetRecentPublicPosts() ([]post_models.Post, error)
 }
 
 type postsRepository struct {
@@ -28,6 +29,28 @@ func (repository *postsRepository) GetRecentPosts() ([]post_models.Post, error) 
 	rows, err := repository.conn.Query(
 		context.TODO(), `SELECT * FROM posts ORDER BY created_at DESC LIMIT 10;`,
 	)
+	if err != nil {
+		return nil,nil
+	}
+	defer rows.Close()
+
+	posts, err := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.Post])
+	if err != nil {
+		fmt.Println(err)
+		return posts, err
+	}
+	if len(posts) > 0 {
+		fmt.Printf("postId: %d postBlob %s ", posts[0].PostId, posts[0].Title)
+	}
+	return posts,nil
+}
+
+func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, error) {
+	fmt.Println("getting public posts from the database")
+
+	rows, err := repository.conn.Query(
+		context.TODO(), `SELECT * FROM posts WHERE restricted = false ORDER BY created_at DESC LIMIT 10`,
+	);
 	if err != nil {
 		return nil,nil
 	}

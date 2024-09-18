@@ -36,3 +36,17 @@ func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request)
 	w.Write(b)
 
 }
+
+func (postsApi *postsApi) GetRecentPublicPosts(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Getting posts")
+	posts, err := postsApi.postsRepository.GetRecentPublicPosts()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	b, _ := json.Marshal(posts)
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}

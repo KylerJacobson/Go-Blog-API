@@ -24,7 +24,7 @@ func main() {
 	postsApi := posts.New(postsRepo.New(dbConn))
 	http.HandleFunc("GET /", handler)
 	// POSTS
-
+	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
 	http.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
 	http.HandleFunc("GET /api/media/:id", postsApi.GetRecentPosts)
 	fmt.Println("Listening on port 8080")

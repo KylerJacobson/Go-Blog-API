@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/KylerJacobson/Go-Blog-API/logger"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -17,7 +18,7 @@ func GetDBConn() pgx.Conn {
 	port := os.Getenv("POSTGRES_PORT")
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", user, password, host, port, db)
 
-	fmt.Printf("Trying to connect to database %s", connStr)
+	logger.Sugar.Infof("Trying to connect to database %s", connStr)
 	conn, err := pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)

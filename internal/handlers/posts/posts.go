@@ -2,7 +2,6 @@ package posts
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/KylerJacobson/Go-Blog-API/internal/db/posts"
@@ -23,7 +22,6 @@ func New(postsRepo posts.PostsRepository) *postsApi {
 }
 
 func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Getting posts")
 	posts, err := postsApi.postsRepository.GetRecentPosts()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -38,7 +36,6 @@ func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request)
 }
 
 func (postsApi *postsApi) GetRecentPublicPosts(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Getting posts")
 	posts, err := postsApi.postsRepository.GetRecentPublicPosts()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

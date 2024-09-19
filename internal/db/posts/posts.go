@@ -30,7 +30,7 @@ func (repository *postsRepository) GetRecentPosts() ([]post_models.Post, error) 
 		context.TODO(), `SELECT * FROM posts ORDER BY created_at DESC LIMIT 10;`,
 	)
 	if err != nil {
-		return nil,nil
+		return nil, nil
 	}
 	defer rows.Close()
 
@@ -42,7 +42,7 @@ func (repository *postsRepository) GetRecentPosts() ([]post_models.Post, error) 
 	if len(posts) > 0 {
 		logger.Sugar.Infof("postId: %d postBlob %s ", posts[0].PostId, posts[0].Title)
 	}
-	return posts,nil
+	return posts, nil
 }
 
 func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, error) {
@@ -50,9 +50,9 @@ func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, e
 
 	rows, err := repository.conn.Query(
 		context.TODO(), `SELECT * FROM posts WHERE restricted = false ORDER BY created_at DESC LIMIT 10`,
-	);
+	)
 	if err != nil {
-		return nil,nil
+		return nil, nil
 	}
 	defer rows.Close()
 
@@ -64,5 +64,5 @@ func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, e
 	if len(posts) > 0 {
 		logger.Sugar.Infof("postId: %d postBlob %s ", posts[0].PostId, posts[0].Title)
 	}
-	return posts,nil
+	return posts, nil
 }

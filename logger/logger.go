@@ -6,7 +6,7 @@ import (
 
 var (
 	Logger *zap.Logger
-	Sugar *zap.SugaredLogger
+	Sugar  *zap.SugaredLogger
 )
 
 func Init(env string) error {
@@ -16,12 +16,12 @@ func Init(env string) error {
 	} else {
 		Logger, err = zap.NewProduction()
 	}
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	Sugar = Logger.Sugar()
 	return nil
 }
 func Sync() {
-    _ = Logger.Sync()
+	_ = Logger.Sync()
 }

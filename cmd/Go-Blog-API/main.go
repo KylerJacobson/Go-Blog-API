@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,9 +12,9 @@ import (
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello world from %s", r.URL.Path[1:])
-}
+// func handler(w http.ResponseWriter, r *http.Request) {
+// 	fmt.Fprintf(w, "Hello world from %s", r.URL.Path[1:])
+// }
 
 func main() {
 	env := os.Getenv("ENVIRONMENT")
@@ -28,11 +27,11 @@ func main() {
 	defer dbConn.Close(context.Background())
 
 	postsApi := posts.New(postsRepo.New(dbConn))
-	http.HandleFunc("GET /", handler)
+	// http.HandleFunc("GET /", handler)
 	// POSTS
 	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
 	http.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
-	http.HandleFunc("GET /api/media/:id", postsApi.GetRecentPosts)
+	http.HandleFunc("GET /api/post/{id}", postsApi.GetPostById)
 	logger.Sugar.Infof("Logging level set to %s", env)
 	logger.Sugar.Infof("listening on port: %d", 8080)
 	log.Fatal(http.ListenAndServe(":8080", nil))

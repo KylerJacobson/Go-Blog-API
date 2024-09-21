@@ -12,8 +12,8 @@ type PostsRepository interface {
 	GetRecentPosts() ([]post_models.Post, error)
 	GetRecentPublicPosts() ([]post_models.Post, error)
 	GetPostById(postId int) (*post_models.Post, error)
-	// DeletePostById(postId int) (post_models.Post, error)
-	// CreatePost(title, content string, restricted bool, userId int) error
+	DeletePostById(postId int) error
+	CreatePost(post post_models.PostRequestBody) error
 }
 
 type postsRepository struct {
@@ -80,11 +80,33 @@ func (repository *postsRepository) GetPostById(postId int) (*post_models.Post, e
 	}
 	defer rows.Close()
 	post, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[post_models.Post])
-	//post, err := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.Post])
 	if err != nil {
 		logger.Sugar.Errorf("Error getting post %v: %v ", err)
 		return nil, err
 	}
 	return &post, nil
+}
 
+func (repository *postsRepository) DeletePostById(postId int) error {
+	rows, err := repository.conn.Query(
+		context.TODO(), `DELETE FROM posts WHERE post_id = $1`, postId,
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	return nil
+}
+
+func (repository *postsRepository) CreatePost(post post_models.PostRequestBody) error {
+	rows, err := repository.conn.Query(
+		context.TODO(), `INSERT INTO posts (title, content, restricted, user_id) VALUES ($1, $2, $3, $4) RETURNING *`, post.Title, post.Content, post.Restricted, post.UserId,
+	)
+	if err != nil {
+		logger.Sugar.Errorf("Error creating post(%s) : %v", post.Title, err)
+		return err
+	}
+	defer rows.Close()
+	logger.Sugar.Infof("Created post %s", post.Title)
+	return nil
 }

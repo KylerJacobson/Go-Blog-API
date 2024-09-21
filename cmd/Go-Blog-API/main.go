@@ -32,6 +32,8 @@ func main() {
 	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
 	http.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
 	http.HandleFunc("GET /api/post/{id}", postsApi.GetPostById)
+	http.HandleFunc("DELETE /api/post/{id}", postsApi.DeletePostById)
+	http.HandleFunc("POST /api/post", postsApi.CreatePost)
 	logger.Sugar.Infof("Logging level set to %s", env)
 	logger.Sugar.Infof("listening on port: %d", 8080)
 	log.Fatal(http.ListenAndServe(":8080", nil))

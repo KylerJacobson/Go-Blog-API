@@ -14,6 +14,7 @@ type PostsRepository interface {
 	GetPostById(postId int) (*post_models.Post, error)
 	DeletePostById(postId int) error
 	CreatePost(post post_models.PostRequestBody) error
+	UpdatePost(post post_models.PostRequestBody, id int) (*post_models.PostRequestBody, error)
 }
 
 type postsRepository struct {
@@ -109,4 +110,23 @@ func (repository *postsRepository) CreatePost(post post_models.PostRequestBody) 
 	defer rows.Close()
 	logger.Sugar.Infof("Created post %s", post.Title)
 	return nil
+}
+
+func (repository *postsRepository) UpdatePost(post post_models.PostRequestBody, id int) (*post_models.PostRequestBody, error) {
+	rows, err := repository.conn.Query(
+		context.TODO(), `UPDATE posts SET title = $1, content = $2, restricted = $3, user_id = $4 WHERE post_id = $5 RETURNING title, content, restricted, user_id`, post.Title, post.Content, post.Restricted, post.UserId, id,
+	)
+	if err != nil {
+		logger.Sugar.Errorf("Error updating post(%s) : %v", post.Title, err)
+		return nil, err
+	}
+	defer rows.Close()
+	updatedPost, err := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.PostRequestBody])
+	if err != nil {
+		logger.Sugar.Infof("Error unmarshalling updated post: %s", post.Title)
+		logger.Sugar.Errorf("Error updating post(%s) : %v", post.Title, err)
+		return nil, err
+	}
+	logger.Sugar.Infof("Updated post %s", &updatedPost[0].Title)
+	return &updatedPost[0], nil
 }

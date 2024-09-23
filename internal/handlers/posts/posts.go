@@ -3,6 +3,7 @@ package posts
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -38,7 +39,14 @@ func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request)
 		w.Write(b)
 		return
 	}
-	b, _ := json.Marshal(posts)
+	b, err := json.Marshal(posts)
+	if err != nil {
+		logger.Sugar.Errorf("error unmarshalling recent posts : %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
@@ -52,7 +60,14 @@ func (postsApi *postsApi) GetRecentPublicPosts(w http.ResponseWriter, r *http.Re
 		w.Write(b)
 		return
 	}
-	b, _ := json.Marshal(posts)
+	b, err := json.Marshal(posts)
+	if err != nil {
+		logger.Sugar.Errorf("error unmarshalling recent public posts : %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 }
@@ -77,7 +92,14 @@ func (postsApi *postsApi) GetPostById(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
-	b, _ := json.Marshal(post)
+	b, err := json.Marshal(post)
+	if err != nil {
+		logger.Sugar.Errorf("error unmarshalling post (%d) : %v", id, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 }
@@ -107,7 +129,16 @@ func (postsApi *postsApi) DeletePostById(w http.ResponseWriter, r *http.Request)
 
 func (postsApi *postsApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 	var post post_models.PostRequestBody
-	err := json.NewDecoder(r.Body).Decode(&post)
+	err := validatePost(post)
+	if err != nil {
+		logger.Sugar.Errorf("the post was not formatter correctly: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+
+	err = json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
 		logger.Sugar.Errorf("Error decoding the post request body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -124,4 +155,62 @@ func (postsApi *postsApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
+	var post post_models.PostRequestBody
+	id := r.PathValue("id")
+	iId, err := strconv.Atoi(id)
+	if err != nil {
+		logger.Sugar.Errorf("UpdatePost parameter was not an integer: %v", err)
+		http.Error(w, "postId must be an integer", http.StatusBadRequest)
+		return
+	}
+	err = json.NewDecoder(r.Body).Decode(&post)
+	if err != nil {
+		logger.Sugar.Errorf("Error decoding the post request body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	err = validatePost(post)
+	if err != nil {
+		logger.Sugar.Errorf("the post was not formatter correctly: %v", err)
+
+		b, _ := json.Marshal(err)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(b)
+		return
+	}
+	updatedPost, err := postsApi.postsRepository.UpdatePost(post, iId)
+	if err != nil {
+		logger.Sugar.Errorf("error updating post (%s) : %v", post.Title, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	b, err := json.Marshal(updatedPost)
+	if err != nil {
+		logger.Sugar.Errorf("error unmarshalling updated post (%s) : %v", post.Title, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+
+}
+
+func validatePost(post post_models.PostRequestBody) error {
+	if len(post.Title) < 1 {
+		return fmt.Errorf("post title must not be empty")
+	}
+	if len(post.Content) < 1 {
+		return fmt.Errorf("post content must not be empty")
+	}
+	return nil
 }

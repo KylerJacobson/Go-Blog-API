@@ -8,7 +8,9 @@ import (
 
 	"github.com/KylerJacobson/Go-Blog-API/internal/db/config"
 	postsRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/posts"
+	usersRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/users"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/posts"
+	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/users"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
 
@@ -27,6 +29,7 @@ func main() {
 	defer dbConn.Close(context.Background())
 
 	postsApi := posts.New(postsRepo.New(dbConn))
+	usersApi := users.New(usersRepo.New(dbConn))
 	// http.HandleFunc("GET /", handler)
 	// POSTS
 	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
@@ -35,6 +38,7 @@ func main() {
 	http.HandleFunc("DELETE /api/post/{id}", postsApi.DeletePostById)
 	http.HandleFunc("POST /api/post", postsApi.CreatePost)
 	http.HandleFunc("PUT /api/post/{id}", postsApi.UpdatePost)
+	http.HandleFunc("GET /api/users/{id}", usersApi.GetUserById)
 	logger.Sugar.Infof("Logging level set to %s", env)
 	logger.Sugar.Infof("listening on port: %d", 8080)
 	log.Fatal(http.ListenAndServe(":8080", nil))

@@ -31,7 +31,7 @@ func (repository *postsRepository) GetRecentPosts() ([]post_models.Post, error) 
 	logger.Sugar.Infof("getting posts from the database")
 
 	rows, err := repository.conn.Query(
-		context.TODO(), `SELECT * FROM posts ORDER BY created_at DESC LIMIT 10;`,
+		context.TODO(), `SELECT post_id, title, content, user_id, created_at, updated_at, restricted FROM posts ORDER BY created_at DESC LIMIT 10;`,
 	)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, e
 	logger.Sugar.Info("getting public posts from the database")
 
 	rows, err := repository.conn.Query(
-		context.TODO(), `SELECT * FROM posts WHERE restricted = false ORDER BY created_at DESC LIMIT 10`,
+		context.TODO(), `SELECT post_id, title, content, user_id, created_at, updated_at, restricted FROM posts WHERE restricted = false ORDER BY created_at DESC LIMIT 10`,
 	)
 	if err != nil {
 		return nil, err
@@ -74,7 +74,7 @@ func (repository *postsRepository) GetRecentPublicPosts() ([]post_models.Post, e
 func (repository *postsRepository) GetPostById(postId int) (*post_models.Post, error) {
 
 	rows, err := repository.conn.Query(
-		context.TODO(), `SELECT * FROM posts WHERE post_id = $1`, postId,
+		context.TODO(), `SELECT post_id, title, content, user_id, created_at, updated_at, restricted FROM posts WHERE post_id = $1`, postId,
 	)
 	if err != nil {
 		return nil, err

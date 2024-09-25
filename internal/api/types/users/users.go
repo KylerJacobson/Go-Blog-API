@@ -13,3 +13,12 @@ type User struct {
 	Role              int       `json:"role" db:"role"`
 	EmailNotification bool      `json:"emailNotification" db:"email_notification"`
 }
+
+type UserCreate struct {
+	FirstName         string `json:"firstName" db:"first_name"`
+	LastName          string `json:"lastName" db:"last_name"`
+	Email             string `json:"email" db:"email"`
+	Password          string `json:"password" db:"password"`
+	AccessRequest     int    `json:"accessRequest" db:"role"`
+	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
+}

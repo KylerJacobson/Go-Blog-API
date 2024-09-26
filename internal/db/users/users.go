@@ -2,16 +2,20 @@ package users
 
 import (
 	"context"
+	"errors"
 
 	user_models "github.com/KylerJacobson/Go-Blog-API/internal/api/types/users"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 	"github.com/jackc/pgx/v5"
+	pgxv5 "github.com/jackc/pgx/v5"
 )
 
 type UsersRepository interface {
 	GetUserById(id int) (*user_models.User, error)
 	DeleteUserById(id int) error
 	CreateUser(user user_models.UserCreate) (string, error)
+	LoginUser(user user_models.UserLogin) (*user_models.User, error)
+	GetUserByEmail(email string) (*user_models.User, error)
 }
 
 type usersRepository struct {
@@ -81,4 +85,46 @@ func (repository *usersRepository) CreateUser(user user_models.UserCreate) (stri
 	}
 
 	return createdUser[0].Id, nil
+}
+
+func (repository *usersRepository) GetUserByEmail(email string) (*user_models.User, error) {
+	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, password, created_at, updated_at, role, email_notification FROM users WHERE email = $1`, email)
+	if err != nil {
+		logger.Sugar.Errorf("Error retrieving user (%s) from the database: %v", email, err)
+		return nil, err
+	}
+	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.User])
+	if err != nil {
+		logger.Sugar.Errorf("Error getting user: %v", err)
+		return nil, err
+	}
+	if len(users) < 1 {
+		logger.Sugar.Errorf("User %s not found: %v",email, err)
+		return nil, errors.New("User not found")
+	} 
+	return &users[0], nil
+}
+
+func (repository *usersRepository) LoginUser(user user_models.UserLogin) (*user_models.User, error) {
+	var match bool
+	err := repository.conn.QueryRow(
+		context.TODO(), `SELECT (password = crypt($1, password)) AS isMatch FROM users WHERE email = $2`, user.Password, user.Email,
+	).Scan(&match)
+	if err != nil {
+		if errors.Is(err, pgxv5.ErrNoRows) {
+			logger.Sugar.Infof("User with id: %s does not exist in the database", user.Email)
+			return nil, nil
+		}
+		logger.Sugar.Errorf("Error retrieving user (%s) from the database: %v", user.Email, err)
+		return nil, err
+	} 
+	if match {
+		user, err :=  repository.GetUserByEmail(user.Email)
+		if err != nil {
+			logger.Sugar.Errorf("Error getting user: %v", err)
+			return nil, err
+		}
+		return user, nil
+	}
+	return nil, nil
 }

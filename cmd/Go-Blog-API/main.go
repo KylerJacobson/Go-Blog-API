@@ -41,6 +41,7 @@ func main() {
 	http.HandleFunc("GET /api/users/{id}", usersApi.GetUserById)
 	http.HandleFunc("DELETE /api/users/{id}", usersApi.DeleteUserById)
 	http.HandleFunc("POST /api/users", usersApi.CreateUser)
+	http.HandleFunc("POST /api/session", usersApi.LoginUser)
 	logger.Sugar.Infof("Logging level set to %s", env)
 	logger.Sugar.Infof("listening on port: %d", 8080)
 	log.Fatal(http.ListenAndServe(":8080", nil))

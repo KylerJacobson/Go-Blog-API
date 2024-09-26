@@ -22,3 +22,8 @@ type UserCreate struct {
 	AccessRequest     int    `json:"accessRequest" db:"role"`
 	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
+
+type UserLogin struct {
+	Email             string `json:"email" db:"email"`
+	Password          string `json:"password" db:"password"`
+}

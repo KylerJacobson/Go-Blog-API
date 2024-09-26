@@ -16,6 +16,7 @@ type UsersApi interface {
 	GetUserById(w http.ResponseWriter, r *http.Request)
 	DeleteUserById(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
+	LoginUser(w http.ResponseWriter, r *http.Request)
 }
 
 type usersApi struct {
@@ -109,6 +110,40 @@ func (usersApi *usersApi) CreateUser(w http.ResponseWriter, r *http.Request) {
 	b, err := json.Marshal(userId)
 	if err != nil {
 		logger.Sugar.Errorf("error marshalling the create user response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
+func (usersApi *usersApi) LoginUser(w http.ResponseWriter, r *http.Request) {
+	var userLoginRequest users.UserLogin
+	err := json.NewDecoder(r.Body).Decode(&userLoginRequest)
+	if err != nil {
+		logger.Sugar.Errorf("Error decoding the user request body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	user, err := usersApi.usersRepository.LoginUser(userLoginRequest)
+	if err != nil {
+		logger.Sugar.Errorf("error logging in user for %s : %v", userLoginRequest.Email, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	if user == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+	b, err := json.Marshal(user)
+	if err != nil {
+		logger.Sugar.Errorf("error marshalling the login user response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)

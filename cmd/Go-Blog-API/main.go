@@ -14,10 +14,6 @@ import (
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
 
-// func handler(w http.ResponseWriter, r *http.Request) {
-// 	fmt.Fprintf(w, "Hello world from %s", r.URL.Path[1:])
-// }
-
 func main() {
 	env := os.Getenv("ENVIRONMENT")
 	err := logger.Init(env)
@@ -30,8 +26,7 @@ func main() {
 
 	postsApi := posts.New(postsRepo.New(dbConn))
 	usersApi := users.New(usersRepo.New(dbConn))
-	// http.HandleFunc("GET /", handler)
-	// POSTS
+
 	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
 	http.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
 	http.HandleFunc("GET /api/post/{id}", postsApi.GetPostById)

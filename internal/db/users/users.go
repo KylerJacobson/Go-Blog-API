@@ -99,9 +99,9 @@ func (repository *usersRepository) GetUserByEmail(email string) (*user_models.Us
 		return nil, err
 	}
 	if len(users) < 1 {
-		logger.Sugar.Errorf("User %s not found: %v",email, err)
+		logger.Sugar.Errorf("User %s not found: %v", email, err)
 		return nil, errors.New("User not found")
-	} 
+	}
 	return &users[0], nil
 }
 
@@ -117,9 +117,9 @@ func (repository *usersRepository) LoginUser(user user_models.UserLogin) (*user_
 		}
 		logger.Sugar.Errorf("Error retrieving user (%s) from the database: %v", user.Email, err)
 		return nil, err
-	} 
+	}
 	if match {
-		user, err :=  repository.GetUserByEmail(user.Email)
+		user, err := repository.GetUserByEmail(user.Email)
 		if err != nil {
 			logger.Sugar.Errorf("Error getting user: %v", err)
 			return nil, err

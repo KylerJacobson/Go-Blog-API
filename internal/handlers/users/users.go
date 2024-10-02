@@ -13,9 +13,10 @@ import (
 )
 
 type UsersApi interface {
-	GetUserById(w http.ResponseWriter, r *http.Request)
-	DeleteUserById(w http.ResponseWriter, r *http.Request)
 	CreateUser(w http.ResponseWriter, r *http.Request)
+	GetUserById(w http.ResponseWriter, r *http.Request)
+	ListUsers(w http.ResponseWriter, r *http.Request)
+	DeleteUserById(w http.ResponseWriter, r *http.Request)
 	LoginUser(w http.ResponseWriter, r *http.Request)
 }
 
@@ -144,6 +145,27 @@ func (usersApi *usersApi) LoginUser(w http.ResponseWriter, r *http.Request) {
 	b, err := json.Marshal(user)
 	if err != nil {
 		logger.Sugar.Errorf("error marshalling the login user response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
+func (usersApi *usersApi) ListUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := usersApi.usersRepository.GetAllUsers()
+	if err != nil {
+		logger.Sugar.Errorf("error listing users: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	b, err := json.Marshal(users)
+	if err != nil {
+		logger.Sugar.Errorf("error marshalling the users list: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)

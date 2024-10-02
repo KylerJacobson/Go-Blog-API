@@ -11,11 +11,12 @@ import (
 )
 
 type UsersRepository interface {
-	GetUserById(id int) (*user_models.User, error)
-	DeleteUserById(id int) error
 	CreateUser(user user_models.UserCreate) (string, error)
-	LoginUser(user user_models.UserLogin) (*user_models.User, error)
+	GetUserById(id int) (*user_models.User, error)
 	GetUserByEmail(email string) (*user_models.User, error)
+	GetAllUsers() (*[]user_models.FrontendUser, error)
+	DeleteUserById(id int) error
+	LoginUser(user user_models.UserLogin) (*user_models.User, error)
 }
 
 type usersRepository struct {
@@ -127,4 +128,18 @@ func (repository *usersRepository) LoginUser(user user_models.UserLogin) (*user_
 		return user, nil
 	}
 	return nil, nil
+}
+
+func (repository *usersRepository) GetAllUsers() (*[]user_models.FrontendUser, error) {
+	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, role, email_notification, created_at FROM users ORDER BY created_at ASC`)
+	if err != nil {
+		logger.Sugar.Errorf("Error retrieving users from the database: %v", err)
+		return nil, err
+	}
+	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.FrontendUser])
+	if err != nil {
+		logger.Sugar.Errorf("Error getting user: %v", err)
+		return nil, err
+	}
+	return &users, nil
 }

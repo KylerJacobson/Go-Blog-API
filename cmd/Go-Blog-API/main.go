@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/KylerJacobson/Go-Blog-API/internal/authorization"
 	"github.com/KylerJacobson/Go-Blog-API/internal/db/config"
 	postsRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/posts"
 	usersRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/users"
@@ -45,6 +46,7 @@ func main() {
 
 	// ---------------------------- Sessions ---------------------------- 
 	http.HandleFunc("POST /api/session", usersApi.LoginUser)
+	http.HandleFunc("POST /api/verifyToken", authorization.VerifyToken)
 	// http.HandleFunc("DELETE /api/session", usersApi.DeleteSession)
 
 	logger.Sugar.Infof("Logging level set to %s", env)

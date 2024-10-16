@@ -11,6 +11,7 @@ import (
 	postsRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/posts"
 	usersRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/users"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/posts"
+	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/session"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/users"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
@@ -27,6 +28,7 @@ func main() {
 
 	postsApi := posts.New(postsRepo.New(dbConn))
 	usersApi := users.New(usersRepo.New(dbConn))
+	sessionApi := session.New(usersRepo.New(dbConn))
 
 	// ---------------------------- Posts ---------------------------- 
 	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
@@ -45,7 +47,7 @@ func main() {
 	
 
 	// ---------------------------- Sessions ---------------------------- 
-	http.HandleFunc("POST /api/session", usersApi.LoginUser)
+	http.HandleFunc("POST /api/session", sessionApi.CreateSession)
 	http.HandleFunc("POST /api/verifyToken", authorization.VerifyToken)
 	// http.HandleFunc("DELETE /api/session", usersApi.DeleteSession)
 

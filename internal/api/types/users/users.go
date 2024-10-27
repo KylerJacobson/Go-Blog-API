@@ -23,6 +23,9 @@ type UserCreate struct {
 	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
 
+type UserLoginForm struct {
+	FormData UserLogin `json:"formData"`
+}
 type UserLogin struct {
 	Email    string `json:"email" db:"email"`
 	Password string `json:"password" db:"password"`

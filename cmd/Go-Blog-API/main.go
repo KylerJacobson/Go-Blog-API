@@ -1,15 +1,17 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/KylerJacobson/Go-Blog-API/internal/authorization"
 	"github.com/KylerJacobson/Go-Blog-API/internal/db/config"
+
+	mediaRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/media"
 	postsRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/posts"
 	usersRepo "github.com/KylerJacobson/Go-Blog-API/internal/db/users"
+	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/media"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/posts"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/session"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/users"
@@ -23,35 +25,44 @@ func main() {
 		log.Fatal(err)
 	}
 	defer logger.Sync()
-	dbConn := config.GetDBConn()
-	defer dbConn.Close(context.Background())
+	dbPool := config.GetDBConn()
+	defer dbPool.Close()
 
-	postsApi := posts.New(postsRepo.New(dbConn))
-	usersApi := users.New(usersRepo.New(dbConn))
-	sessionApi := session.New(usersRepo.New(dbConn))
+	session.Init()
 
-	// ---------------------------- Posts ---------------------------- 
-	http.HandleFunc("GET /api/posts/public", postsApi.GetRecentPublicPosts)
-	http.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
-	http.HandleFunc("GET /api/post/{id}", postsApi.GetPostById)
-	http.HandleFunc("DELETE /api/post/{id}", postsApi.DeletePostById)
-	http.HandleFunc("POST /api/post", postsApi.CreatePost)
-	http.HandleFunc("PUT /api/post/{id}", postsApi.UpdatePost)
+	mux := http.NewServeMux()
+
+	postsApi := posts.New(postsRepo.New(dbPool))
+	usersApi := users.New(usersRepo.New(dbPool))
+	sessionApi := session.New(usersRepo.New(dbPool))
+	mediaApi := media.New(mediaRepo.New(dbPool))
+
+	// ---------------------------- Posts ----------------------------
+	mux.HandleFunc("GET /api/posts", postsApi.GetPosts)
+	mux.HandleFunc("GET /api/posts/recent", postsApi.GetRecentPosts)
+	mux.HandleFunc("GET /api/posts/{id}", postsApi.GetPostById)
+	mux.HandleFunc("DELETE /api/posts/{id}", postsApi.DeletePostById)
+	mux.HandleFunc("POST /api/posts", postsApi.CreatePost)
+	mux.HandleFunc("PUT /api/posts/{id}", postsApi.UpdatePost)
 
 	// ---------------------------- Users ----------------------------
-	http.HandleFunc("POST /api/users", usersApi.CreateUser)
-	http.HandleFunc("GET /api/users/{id}", usersApi.GetUserById)
-	http.HandleFunc("GET /api/users/list", usersApi.ListUsers)
+	mux.HandleFunc("POST /api/users", usersApi.CreateUser)
+	mux.HandleFunc("GET /api/user", usersApi.GetUserFromSession)
+	mux.HandleFunc("GET /api/users/{id}", usersApi.GetUserById)
+	mux.HandleFunc("GET /api/users/list", usersApi.ListUsers)
 	// http.HandleFunc("PUT /api/users/{id}", usersApi.UpdateUser)
-	http.HandleFunc("DELETE /api/users/{id}", usersApi.DeleteUserById)
-	
+	mux.HandleFunc("DELETE /api/users/{id}", usersApi.DeleteUserById)
 
-	// ---------------------------- Sessions ---------------------------- 
-	http.HandleFunc("POST /api/session", sessionApi.CreateSession)
-	http.HandleFunc("POST /api/verifyToken", authorization.VerifyToken)
-	// http.HandleFunc("DELETE /api/session", usersApi.DeleteSession)
+	mux.HandleFunc("POST /api/session", sessionApi.CreateSession)
+	mux.HandleFunc("POST /api/verifyToken", authorization.VerifyToken)
+	mux.HandleFunc("DELETE /api/session", sessionApi.DeleteSession)
+
+	// ---------------------------- Media ----------------------------
+	mux.HandleFunc("POST /api/media", mediaApi.UploadMedia)
+	mux.HandleFunc("GET /api/media/{id}", mediaApi.GetMediaByPostId)
 
 	logger.Sugar.Infof("Logging level set to %s", env)
 	logger.Sugar.Infof("listening on port: %d", 8080)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.ListenAndServe(":8080", session.Manager.LoadAndSave(mux))
+	// log.Fatal(http.ListenAndServe(":8080", nil))
 }

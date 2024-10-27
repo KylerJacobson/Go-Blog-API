@@ -6,6 +6,7 @@ import (
 	post_models "github.com/KylerJacobson/Go-Blog-API/internal/api/types/posts"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type PostsRepository interface {
@@ -13,15 +14,15 @@ type PostsRepository interface {
 	GetRecentPublicPosts() ([]post_models.Post, error)
 	GetPostById(postId int) (*post_models.Post, error)
 	DeletePostById(postId int) error
-	CreatePost(post post_models.PostRequestBody) error
-	UpdatePost(post post_models.PostRequestBody, id int) (*post_models.PostRequestBody, error)
+	CreatePost(post post_models.PostRequestBody, userId int) (int, error)
+	UpdatePost(post post_models.PostRequestBody, postId, userId int) (*post_models.PostRequestBody, error)
 }
 
 type postsRepository struct {
-	conn pgx.Conn
+	conn *pgxpool.Pool
 }
 
-func New(conn pgx.Conn) *postsRepository {
+func New(conn *pgxpool.Pool) *postsRepository {
 	return &postsRepository{
 		conn: conn,
 	}
@@ -99,22 +100,27 @@ func (repository *postsRepository) DeletePostById(postId int) error {
 	return nil
 }
 
-func (repository *postsRepository) CreatePost(post post_models.PostRequestBody) error {
+func (repository *postsRepository) CreatePost(post post_models.PostRequestBody, userId int) (int, error) {
 	rows, err := repository.conn.Query(
-		context.TODO(), `INSERT INTO posts (title, content, restricted, user_id) VALUES ($1, $2, $3, $4) RETURNING *`, post.Title, post.Content, post.Restricted, post.UserId,
+		context.TODO(), `INSERT INTO posts (title, content, restricted, user_id) VALUES ($1, $2, $3, $4) RETURNING post_id`, post.Title, post.Content, post.Restricted, userId,
 	)
 	if err != nil {
 		logger.Sugar.Errorf("Error creating post(%s) : %v", post.Title, err)
-		return err
+		return 0, err
+	}
+	newPost, err := pgx.CollectRows(rows, pgx.RowToStructByName[post_models.CreatedPost])
+	if err != nil {
+		logger.Sugar.Errorf("Error returning postId for post(%s) : %v", post.Title, err)
+		return 0, err
 	}
 	defer rows.Close()
 	logger.Sugar.Infof("Created post %s", post.Title)
-	return nil
+	return newPost[0].PostId, nil
 }
 
-func (repository *postsRepository) UpdatePost(post post_models.PostRequestBody, id int) (*post_models.PostRequestBody, error) {
+func (repository *postsRepository) UpdatePost(post post_models.PostRequestBody, postId, userId int) (*post_models.PostRequestBody, error) {
 	rows, err := repository.conn.Query(
-		context.TODO(), `UPDATE posts SET title = $1, content = $2, restricted = $3, user_id = $4 WHERE post_id = $5 RETURNING title, content, restricted, user_id`, post.Title, post.Content, post.Restricted, post.UserId, id,
+		context.TODO(), `UPDATE posts SET title = $1, content = $2, restricted = $3, user_id = $4 WHERE post_id = $5 RETURNING title, content, restricted, user_id`, post.Title, post.Content, post.Restricted, userId, postId,
 	)
 	if err != nil {
 		logger.Sugar.Errorf("Error updating post(%s) : %v", post.Title, err)

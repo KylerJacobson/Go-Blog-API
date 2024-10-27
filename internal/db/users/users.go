@@ -8,6 +8,7 @@ import (
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 	"github.com/jackc/pgx/v5"
 	pgxv5 "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type UsersRepository interface {
@@ -20,10 +21,10 @@ type UsersRepository interface {
 }
 
 type usersRepository struct {
-	conn pgx.Conn
+	conn *pgxpool.Pool
 }
 
-func New(conn pgx.Conn) *usersRepository {
+func New(conn *pgxpool.Pool) *usersRepository {
 	return &usersRepository{
 		conn: conn,
 	}

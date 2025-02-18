@@ -50,7 +50,7 @@ func main() {
 	mux.HandleFunc("GET /api/user", usersApi.GetUserFromSession)
 	mux.HandleFunc("GET /api/users/{id}", usersApi.GetUserById)
 	mux.HandleFunc("GET /api/users/list", usersApi.ListUsers)
-	// http.HandleFunc("PUT /api/users/{id}", usersApi.UpdateUser)
+	mux.HandleFunc("PUT /api/user/{id}", usersApi.UpdateUser)
 	mux.HandleFunc("DELETE /api/users/{id}", usersApi.DeleteUserById)
 
 	mux.HandleFunc("POST /api/session", sessionApi.CreateSession)

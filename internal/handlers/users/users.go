@@ -18,6 +18,7 @@ import (
 type UsersApi interface {
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	GetUserById(w http.ResponseWriter, r *http.Request)
+	UpdateUser(w http.ResponseWriter, r *http.Request)
 	ListUsers(w http.ResponseWriter, r *http.Request)
 	DeleteUserById(w http.ResponseWriter, r *http.Request)
 	LoginUser(w http.ResponseWriter, r *http.Request)
@@ -179,6 +180,41 @@ func (usersApi *usersApi) ListUsers(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func (usersApi *usersApi) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	var userUpdateRequest users.UserUpdateRequest
+	err := json.NewDecoder(r.Body).Decode(&userUpdateRequest)
+	if err != nil {
+		logger.Sugar.Errorf("Error decoding the user request body: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	// validate user update requset
+	err = validateUpdateUserRequest(r, userUpdateRequest)
+	if err != nil {
+		logger.Sugar.Errorf("error validating user update request: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	err = usersApi.usersRepository.UpdateUser(userUpdateRequest.User)
+	if err != nil {
+		if errors.Is(err, pgxv5.ErrNoRows) {
+			logger.Sugar.Infof("User with id: %s does not exist in the database", userUpdateRequest.User.Id)
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		b, _ := json.Marshal(err)
+		w.Write(b)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+
+}
+
 func (usersApi *usersApi) GetUserFromSession(w http.ResponseWriter, r *http.Request) {
 
 	token := session.Manager.GetString(r.Context(), "session_token")
@@ -213,4 +249,57 @@ func (usersApi *usersApi) GetUserFromSession(w http.ResponseWriter, r *http.Requ
 	}
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
+}
+
+func validateUpdateUserRequest(r *http.Request, userUpdateRequest users.UserUpdateRequest) error {
+	// Check path value matches current userID
+	errors := []error{}
+	id := r.PathValue("id")
+	userID, err := strconv.Atoi(id)
+	if err != nil {
+		logger.Sugar.Errorf("Update user parameter was not an integer: %v", err)
+		errors = append(errors, err)
+	}
+	token := session.Manager.GetString(r.Context(), "session_token")
+	claims := authorization.DecodeToken(token)
+	if claims.Sub != userID {
+		logger.Sugar.Errorf("user %d attempted to update user %d", claims.Sub, userID)
+		errors = append(errors, err)
+	}
+
+	// Validate fields
+	if userUpdateRequest.User.FirstName == "" {
+		errors = append(errors, fmt.Errorf("first name is required"))
+	}
+	if userUpdateRequest.User.LastName == "" {
+		errors = append(errors, fmt.Errorf("last name is required"))
+	}
+	if userUpdateRequest.User.Email == "" {
+		errors = append(errors, fmt.Errorf("email is required"))
+	}
+	if userUpdateRequest.Role == "" {
+		errors = append(errors, fmt.Errorf("logged in user role is required"))
+	}
+	if userUpdateRequest.User.Role == "" {
+		errors = append(errors, fmt.Errorf("new role is required"))
+	}
+	// Using strings here because the nil value of an int is a valid role
+	newRoleRequest, err := strconv.Atoi(userUpdateRequest.User.Role)
+	if err != nil {
+		logger.Sugar.Errorf("new user role is not an integer: %v", err)
+		errors = append(errors, err)
+	}
+	currentUserRole, err := strconv.Atoi(userUpdateRequest.Role)
+	if err != nil {
+		logger.Sugar.Errorf("current user role is not an integer: %v", err)
+		errors = append(errors, err)
+	}
+	if currentUserRole == 1 && newRoleRequest != 1 {
+		logger.Sugar.Errorf("user is already an admin, cannot decrease permission: %v", err)
+		errors = append(errors, err)
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("validation failed")
+	}
+	return nil
 }

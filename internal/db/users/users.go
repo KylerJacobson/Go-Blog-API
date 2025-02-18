@@ -13,6 +13,7 @@ import (
 
 type UsersRepository interface {
 	CreateUser(user user_models.UserCreate) (string, error)
+	UpdateUser(user user_models.UserUpdate) error
 	GetUserById(id int) (*user_models.User, error)
 	GetUserByEmail(email string) (*user_models.User, error)
 	GetAllUsers() (*[]user_models.FrontendUser, error)
@@ -87,6 +88,16 @@ func (repository *usersRepository) CreateUser(user user_models.UserCreate) (stri
 	}
 
 	return createdUser[0].Id, nil
+}
+
+func (repository *usersRepository) UpdateUser(user user_models.UserUpdate) error {
+	rows, err := repository.conn.Query(context.TODO(), `UPDATE users SET first_name = $1, last_name = $2, email = $3, role = $4, email_notification = $5 WHERE id = $6 `, user.FirstName, user.LastName, user.Email, user.Role, user.EmailNotification, user.Id)
+	if err != nil {
+		logger.Sugar.Errorf("Error updating user %s %s : %v", user.FirstName, user.FirstName, err)
+		return err
+	}
+	defer rows.Close()
+	return nil
 }
 
 func (repository *usersRepository) GetUserByEmail(email string) (*user_models.User, error) {

@@ -4,24 +4,15 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	Logger *zap.Logger
-	Sugar  *zap.SugaredLogger
-)
-
-func Init(env string) error {
-	var err error
-	if env == "dev" {
-		Logger, err = zap.NewDevelopment()
-	} else {
-		Logger, err = zap.NewProduction()
-	}
-	if err != nil {
-		return err
-	}
-	Sugar = Logger.Sugar()
-	return nil
+type Logger interface {
+	Sugar() *zap.SugaredLogger
+	Error(msg string, fields ...zap.Field)
+	Info(msg string, fields ...zap.Field)
 }
-func Sync() {
-	_ = Logger.Sync()
+
+func NewLogger(env string) (*zap.Logger, error) {
+	if env == "dev" {
+		return zap.NewDevelopment()
+	}
+	return zap.NewProduction()
 }

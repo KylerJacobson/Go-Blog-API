@@ -2,7 +2,7 @@ package users
 
 import "time"
 
-type User struct {
+type FullUser struct {
 	Id                string    `json:"id" db:"id"`
 	FirstName         string    `json:"firstName" db:"first_name"`
 	LastName          string    `json:"lastName" db:"last_name"`
@@ -12,6 +12,14 @@ type User struct {
 	UpdatedAt         time.Time `json:"updatedAt" db:"updated_at"`
 	Role              int       `json:"role" db:"role"`
 	EmailNotification bool      `json:"emailNotification" db:"email_notification"`
+}
+type User struct {
+	Id                string `json:"id" db:"id"`
+	FirstName         string `json:"firstName" db:"first_name"`
+	LastName          string `json:"lastName" db:"last_name"`
+	Email             string `json:"email" db:"email"`
+	Role              int    `json:"role" db:"role"`
+	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
 
 type UserCreate struct {

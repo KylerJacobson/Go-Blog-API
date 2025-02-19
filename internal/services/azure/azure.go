@@ -1,4 +1,4 @@
-package azureBlobStorage
+package azure
 
 import (
 	"context"
@@ -13,11 +13,21 @@ import (
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
 
-func UploadFileToBlob(fileHeader *multipart.FileHeader, blobName string) error {
+type AzureClient struct {
+	logger logger.Logger
+}
+
+func NewAzureClient(logger logger.Logger) *AzureClient {
+	return &AzureClient{
+		logger: logger,
+	}
+}
+
+func (c *AzureClient) UploadFileToBlob(fileHeader *multipart.FileHeader, blobName string) error {
 	connectionString := os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
 	client, err := azblob.NewClientFromConnectionString(connectionString, nil)
 	if err != nil {
-		logger.Sugar.Errorf("error creating the client from the connection string: %v", err)
+		c.logger.Sugar().Errorf("error creating the client from the connection string: %v", err)
 	}
 	containerClient := client.ServiceClient().NewContainerClient("media")
 
@@ -29,7 +39,7 @@ func UploadFileToBlob(fileHeader *multipart.FileHeader, blobName string) error {
 
 	blobClient := containerClient.NewBlockBlobClient(blobName)
 
-	logger.Sugar.Infof("Uploading a blob named %s\n", blobName)
+	c.logger.Sugar().Infof("Uploading a blob named %s\n", blobName)
 	_, err = blobClient.UploadStream(context.Background(), file, nil)
 	if err != nil {
 		return fmt.Errorf("error uploading to blob: %v", err)
@@ -37,11 +47,11 @@ func UploadFileToBlob(fileHeader *multipart.FileHeader, blobName string) error {
 	return nil
 }
 
-func GetUrlForBlob(blobName string) (string, error) {
+func (c *AzureClient) GetUrlForBlob(blobName string) (string, error) {
 	connectionString := os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
 	client, err := azblob.NewClientFromConnectionString(connectionString, nil)
 	if err != nil {
-		logger.Sugar.Errorf("error creating the client from the connection string: %v", err)
+		c.logger.Sugar().Errorf("error creating the client from the connection string: %v", err)
 	}
 	containerClient := client.ServiceClient().NewContainerClient("media")
 	blobClient := containerClient.NewBlockBlobClient(blobName)
@@ -52,7 +62,7 @@ func GetUrlForBlob(blobName string) (string, error) {
 	options := blob.GetSASURLOptions{StartTime: &start}
 	url, err := blobClient.GetSASURL(permission, expiry, &options)
 	if err != nil {
-		logger.Sugar.Errorf("error getting the sas URL for blob %s with error :%v", blobName, err)
+		c.logger.Sugar().Errorf("error getting the sas URL for blob %s with error :%v", blobName, err)
 		return "", err
 	}
 	return url, nil

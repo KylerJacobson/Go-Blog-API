@@ -11,7 +11,7 @@ import (
 	"github.com/KylerJacobson/Go-Blog-API/internal/authorization"
 	media_repo "github.com/KylerJacobson/Go-Blog-API/internal/db/media"
 	"github.com/KylerJacobson/Go-Blog-API/internal/handlers/session"
-	azureBlobStorage "github.com/KylerJacobson/Go-Blog-API/internal/services"
+	"github.com/KylerJacobson/Go-Blog-API/internal/services/azure"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 )
 
@@ -22,11 +22,15 @@ type MediaApi interface {
 
 type mediaApi struct {
 	mediaRepository media_repo.MediaRepository
+	logger          logger.Logger
+	azClient        *azure.AzureClient
 }
 
-func New(mediaRepo media_repo.MediaRepository) *mediaApi {
+func New(mediaRepo media_repo.MediaRepository, logger logger.Logger, client *azure.AzureClient) *mediaApi {
 	return &mediaApi{
 		mediaRepository: mediaRepo,
+		logger:          logger,
+		azClient:        client,
 	}
 }
 
@@ -34,7 +38,7 @@ func (mediaApi *mediaApi) GetMediaByPostId(w http.ResponseWriter, r *http.Reques
 	id := r.PathValue("id")
 	postId, err := strconv.Atoi(id)
 	if err != nil {
-		logger.Sugar.Errorf("GetPostId parameter was not an integer: %v", err)
+		mediaApi.logger.Sugar().Errorf("GetPostId parameter was not an integer: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
@@ -59,9 +63,9 @@ func (mediaApi *mediaApi) GetMediaByPostId(w http.ResponseWriter, r *http.Reques
 	var postMediaSlc = []postMedia{}
 	for _, attachment := range media {
 		//Check auth status
-		url, err := azureBlobStorage.GetUrlForBlob(attachment.BlobName)
+		url, err := mediaApi.azClient.GetUrlForBlob(attachment.BlobName)
 		if err != nil {
-			logger.Sugar.Errorf("error getting URL for blob: %v", err)
+			mediaApi.logger.Sugar().Errorf("error getting URL for blob: %v", err)
 			http.Error(w, "postId must be an integer", http.StatusInternalServerError)
 			return
 		}
@@ -75,7 +79,7 @@ func (mediaApi *mediaApi) GetMediaByPostId(w http.ResponseWriter, r *http.Reques
 	}
 	b, err := json.Marshal(postMediaSlc)
 	if err != nil {
-		logger.Sugar.Errorf("error marshalling media post for post %d : %v", postId, err)
+		mediaApi.logger.Sugar().Errorf("error marshalling media post for post %d : %v", postId, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -104,13 +108,13 @@ func (mediaApi *mediaApi) UploadMedia(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(postId)
 	iPostId, err := strconv.Atoi(postId)
 	if err != nil {
-		logger.Sugar.Errorf("postId parameter was not an integer: %v", err)
+		mediaApi.logger.Sugar().Errorf("postId parameter was not an integer: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
 	bRestricted, err := strconv.ParseBool(restricted)
 	if err != nil {
-		logger.Sugar.Errorf("restricted parameter was not a boolean: %v", err)
+		mediaApi.logger.Sugar().Errorf("restricted parameter was not a boolean: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
@@ -120,15 +124,15 @@ func (mediaApi *mediaApi) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		logger.Sugar.Errorf("Error creating the azure blob client: %v", err)
+		mediaApi.logger.Sugar().Errorf("Error creating the azure blob client: %v", err)
 		// return 500 error
 	}
 	for _, fileHeader := range files {
 		// Process each file
 		blobName := "blog-media/" + fileHeader.Filename
-		err := azureBlobStorage.UploadFileToBlob(fileHeader, blobName)
+		err := mediaApi.azClient.UploadFileToBlob(fileHeader, blobName)
 		if err != nil {
-			logger.Sugar.Errorf("Error uploading media: %v", err)
+			mediaApi.logger.Sugar().Errorf("Error uploading media: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			b, _ := json.Marshal(err)
 			w.Write(b)
@@ -136,13 +140,13 @@ func (mediaApi *mediaApi) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		}
 		fileType, err := getFileContentType(fileHeader)
 		if err != nil {
-			logger.Sugar.Errorf("error getting the mime type of the file: %v", err)
+			mediaApi.logger.Sugar().Errorf("error getting the mime type of the file: %v", err)
 			http.Error(w, "postId must be an integer", http.StatusInternalServerError)
 			return
 		}
 		err = mediaApi.mediaRepository.UploadMedia(iPostId, blobName, fileType, bRestricted)
 		if err != nil {
-			logger.Sugar.Errorf("Error uploading media reference to database: %v", err)
+			mediaApi.logger.Sugar().Errorf("Error uploading media reference to database: %v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			b, _ := json.Marshal(err)
 			w.Write(b)

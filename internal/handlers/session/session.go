@@ -29,11 +29,13 @@ type SessionApi interface {
 }
 type sessionApi struct {
 	usersRepository users_repo.UsersRepository
+	logger          logger.Logger
 }
 
-func New(usersRepo users_repo.UsersRepository) *sessionApi {
+func New(usersRepo users_repo.UsersRepository, logger logger.Logger) *sessionApi {
 	return &sessionApi{
 		usersRepository: usersRepo,
+		logger:          logger,
 	}
 }
 
@@ -52,7 +54,7 @@ func (sessionApi *sessionApi) CreateSession(w http.ResponseWriter, r *http.Reque
 	var userLoginFormRequest users.UserLoginForm
 	err := json.NewDecoder(r.Body).Decode(&userLoginFormRequest)
 	if err != nil {
-		logger.Sugar.Errorf("Error decoding the user request body: %v", err)
+		sessionApi.logger.Sugar().Errorf("Error decoding the user request body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -60,7 +62,7 @@ func (sessionApi *sessionApi) CreateSession(w http.ResponseWriter, r *http.Reque
 	}
 	user, err := sessionApi.usersRepository.LoginUser(userLoginFormRequest.FormData)
 	if err != nil {
-		logger.Sugar.Errorf("error logging in user for %s : %v", userLoginFormRequest.FormData.Email, err)
+		sessionApi.logger.Sugar().Errorf("error logging in user for %s : %v", userLoginFormRequest.FormData.Email, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)

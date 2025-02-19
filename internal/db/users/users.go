@@ -22,17 +22,19 @@ type UsersRepository interface {
 }
 
 type usersRepository struct {
-	conn *pgxpool.Pool
+	conn   *pgxpool.Pool
+	logger logger.Logger
 }
 
-func New(conn *pgxpool.Pool) *usersRepository {
+func New(conn *pgxpool.Pool, logger logger.Logger) *usersRepository {
 	return &usersRepository{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 	}
 }
 
 func (repository *usersRepository) GetUserById(id int) (*user_models.User, error) {
-	logger.Sugar.Infof("getting user from the database")
+	repository.logger.Sugar().Infof("getting user from the database")
 
 	rows, err := repository.conn.Query(
 		context.TODO(), `SELECT id, first_name, last_name, email, password, created_at, updated_at, role, email_notification FROM users WHERE id = $1;`, id,
@@ -44,7 +46,7 @@ func (repository *usersRepository) GetUserById(id int) (*user_models.User, error
 
 	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.User])
 	if err != nil {
-		logger.Sugar.Errorf("Error getting user: %v", err)
+		repository.logger.Sugar().Errorf("Error getting user: %v", err)
 		return nil, err
 	}
 	if len(users) < 1 {
@@ -55,7 +57,7 @@ func (repository *usersRepository) GetUserById(id int) (*user_models.User, error
 }
 
 func (repository *usersRepository) DeleteUserById(id int) error {
-	logger.Sugar.Infof("deleting user from the database")
+	repository.logger.Sugar().Infof("deleting user from the database")
 
 	rows, err := repository.conn.Query(
 		context.TODO(), `DELETE FROM users WHERE id = $1;`, id,
@@ -72,18 +74,18 @@ func (repository *usersRepository) CreateUser(user user_models.UserCreate) (stri
 
 	rows, err := repository.conn.Query(context.TODO(), `INSERT INTO users (first_name, last_name, email, password, role, email_notification) VALUES ($1, $2, $3, crypt($4, gen_salt('bf', 8)), $5, $6) RETURNING *`, user.FirstName, user.LastName, user.Email, user.Password, user.AccessRequest, user.EmailNotification)
 	if err != nil {
-		logger.Sugar.Errorf("Error creating user %s %s : %v", user.FirstName, user.FirstName, err)
+		repository.logger.Sugar().Errorf("Error creating user %s %s : %v", user.FirstName, user.FirstName, err)
 		return "", err
 	}
 	defer rows.Close()
 	createdUser, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.User])
 	if err != nil {
-		logger.Sugar.Errorf("Error returning user %s %s from database: %v", user.FirstName, user.FirstName, err)
+		repository.logger.Sugar().Errorf("Error returning user %s %s from database: %v", user.FirstName, user.FirstName, err)
 		return "", err
 	}
 
 	if createdUser[0].Id == "" {
-		logger.Sugar.Errorf("Error returning user %s %s from database: %v", user.FirstName, user.FirstName, err)
+		repository.logger.Sugar().Errorf("Error returning user %s %s from database: %v", user.FirstName, user.FirstName, err)
 		return "", err
 	}
 
@@ -93,7 +95,7 @@ func (repository *usersRepository) CreateUser(user user_models.UserCreate) (stri
 func (repository *usersRepository) UpdateUser(user user_models.UserUpdate) error {
 	rows, err := repository.conn.Query(context.TODO(), `UPDATE users SET first_name = $1, last_name = $2, email = $3, role = $4, email_notification = $5 WHERE id = $6 `, user.FirstName, user.LastName, user.Email, user.Role, user.EmailNotification, user.Id)
 	if err != nil {
-		logger.Sugar.Errorf("Error updating user %s %s : %v", user.FirstName, user.FirstName, err)
+		repository.logger.Sugar().Errorf("Error updating user %s %s : %v", user.FirstName, user.FirstName, err)
 		return err
 	}
 	defer rows.Close()
@@ -103,16 +105,16 @@ func (repository *usersRepository) UpdateUser(user user_models.UserUpdate) error
 func (repository *usersRepository) GetUserByEmail(email string) (*user_models.User, error) {
 	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, password, created_at, updated_at, role, email_notification FROM users WHERE email = $1`, email)
 	if err != nil {
-		logger.Sugar.Errorf("Error retrieving user (%s) from the database: %v", email, err)
+		repository.logger.Sugar().Errorf("Error retrieving user (%s) from the database: %v", email, err)
 		return nil, err
 	}
 	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.User])
 	if err != nil {
-		logger.Sugar.Errorf("Error getting user: %v", err)
+		repository.logger.Sugar().Errorf("Error getting user: %v", err)
 		return nil, err
 	}
 	if len(users) < 1 {
-		logger.Sugar.Errorf("User %s not found: %v", email, err)
+		repository.logger.Sugar().Errorf("User %s not found: %v", email, err)
 		return nil, errors.New("User not found")
 	}
 	return &users[0], nil
@@ -125,16 +127,16 @@ func (repository *usersRepository) LoginUser(user user_models.UserLogin) (*user_
 	).Scan(&match)
 	if err != nil {
 		if errors.Is(err, pgxv5.ErrNoRows) {
-			logger.Sugar.Infof("User with id: %s does not exist in the database", user.Email)
+			repository.logger.Sugar().Infof("User with id: %s does not exist in the database", user.Email)
 			return nil, nil
 		}
-		logger.Sugar.Errorf("Error retrieving user (%s) from the database: %v", user.Email, err)
+		repository.logger.Sugar().Errorf("Error retrieving user (%s) from the database: %v", user.Email, err)
 		return nil, err
 	}
 	if match {
 		user, err := repository.GetUserByEmail(user.Email)
 		if err != nil {
-			logger.Sugar.Errorf("Error getting user: %v", err)
+			repository.logger.Sugar().Errorf("Error getting user: %v", err)
 			return nil, err
 		}
 		return user, nil
@@ -145,12 +147,12 @@ func (repository *usersRepository) LoginUser(user user_models.UserLogin) (*user_
 func (repository *usersRepository) GetAllUsers() (*[]user_models.FrontendUser, error) {
 	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, role, email_notification, created_at FROM users ORDER BY created_at ASC`)
 	if err != nil {
-		logger.Sugar.Errorf("Error retrieving users from the database: %v", err)
+		repository.logger.Sugar().Errorf("Error retrieving users from the database: %v", err)
 		return nil, err
 	}
 	users, err := pgx.CollectRows(rows, pgx.RowToStructByName[user_models.FrontendUser])
 	if err != nil {
-		logger.Sugar.Errorf("Error getting user: %v", err)
+		repository.logger.Sugar().Errorf("Error getting user: %v", err)
 		return nil, err
 	}
 	return &users, nil

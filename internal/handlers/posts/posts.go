@@ -26,11 +26,13 @@ type PostsApi interface {
 
 type postsApi struct {
 	postsRepository posts_repo.PostsRepository
+	logger          logger.Logger
 }
 
-func New(postsRepo posts_repo.PostsRepository) *postsApi {
+func New(postsRepo posts_repo.PostsRepository, logger logger.Logger) *postsApi {
 	return &postsApi{
 		postsRepository: postsRepo,
+		logger:          logger,
 	}
 }
 
@@ -44,7 +46,7 @@ func (postsApi *postsApi) GetRecentPosts(w http.ResponseWriter, r *http.Request)
 	}
 	b, err := json.Marshal(posts)
 	if err != nil {
-		logger.Sugar.Errorf("error unmarshalling recent posts : %v", err)
+		postsApi.logger.Sugar().Errorf("error unmarshalling recent posts : %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -69,17 +71,17 @@ func (postsApi *postsApi) GetPosts(w http.ResponseWriter, r *http.Request) {
 	if claims != nil && claims.ExpiresAt.Time.After(time.Now()) && (claims.Role == 1 || claims.Role == 2) {
 		posts, err = postsApi.postsRepository.GetRecentPosts()
 		if err != nil {
-			logger.Sugar.Errorf("error getting all recent posts : %v", err)
+			postsApi.logger.Sugar().Errorf("error getting all recent posts : %v", err)
 		}
 	} else {
 		posts, err = postsApi.postsRepository.GetRecentPublicPosts()
 		if err != nil {
-			logger.Sugar.Errorf("error getting all recent public posts : %v", err)
+			postsApi.logger.Sugar().Errorf("error getting all recent public posts : %v", err)
 		}
 	}
 	b, err := json.Marshal(posts)
 	if err != nil {
-		logger.Sugar.Errorf("error unmarshalling recent public posts : %v", err)
+		postsApi.logger.Sugar().Errorf("error unmarshalling recent public posts : %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -99,7 +101,7 @@ func (postsApi *postsApi) GetRecentPublicPosts(w http.ResponseWriter, r *http.Re
 	}
 	b, err := json.Marshal(posts)
 	if err != nil {
-		logger.Sugar.Errorf("error unmarshalling recent public posts : %v", err)
+		postsApi.logger.Sugar().Errorf("error unmarshalling recent public posts : %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -113,14 +115,14 @@ func (postsApi *postsApi) GetPostById(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	val, err := strconv.Atoi(id)
 	if err != nil {
-		logger.Sugar.Errorf("GetPostId parameter was not an integer: %v", err)
+		postsApi.logger.Sugar().Errorf("GetPostId parameter was not an integer: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
 	post, err := postsApi.postsRepository.GetPostById(val)
 	if err != nil {
 		if errors.Is(err, v5.ErrNoRows) {
-			logger.Sugar.Infof("Post %v does not exist in the database", val)
+			postsApi.logger.Sugar().Infof("Post %v does not exist in the database", val)
 			http.Error(w, "Post not found", http.StatusNotFound)
 			return
 		}
@@ -131,7 +133,7 @@ func (postsApi *postsApi) GetPostById(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := json.Marshal(post)
 	if err != nil {
-		logger.Sugar.Errorf("error unmarshalling post (%d) : %v", id, err)
+		postsApi.logger.Sugar().Errorf("error unmarshalling post (%d) : %v", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -145,14 +147,14 @@ func (postsApi *postsApi) DeletePostById(w http.ResponseWriter, r *http.Request)
 	id := r.PathValue("id")
 	val, err := strconv.Atoi(id)
 	if err != nil {
-		logger.Sugar.Errorf("DeletePostById parameter was not an integer: %v", err)
+		postsApi.logger.Sugar().Errorf("DeletePostById parameter was not an integer: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
 	err = postsApi.postsRepository.DeletePostById(val)
 	if err != nil {
 		if errors.Is(err, v5.ErrNoRows) {
-			logger.Sugar.Infof("Post %v does not exist in the database", val)
+			postsApi.logger.Sugar().Infof("Post %v does not exist in the database", val)
 			http.Error(w, "Post not found", http.StatusNotFound)
 			return
 		}
@@ -177,7 +179,7 @@ func (postsApi *postsApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 	// fmt.Println(string(bytedata))
 	err := json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
-		logger.Sugar.Errorf("Error decoding the post request body: %v", err)
+		postsApi.logger.Sugar().Errorf("Error decoding the post request body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -186,7 +188,7 @@ func (postsApi *postsApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	err = validatePost(post.PostRequestBody)
 	if err != nil {
-		logger.Sugar.Errorf("the post was not formatter correctly: %v", err)
+		postsApi.logger.Sugar().Errorf("the post was not formatter correctly: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -195,7 +197,7 @@ func (postsApi *postsApi) CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	postId, err := postsApi.postsRepository.CreatePost(post.PostRequestBody, claims.Sub)
 	if err != nil {
-		logger.Sugar.Errorf("error creating post (%s) : %v", post.Title, err)
+		postsApi.logger.Sugar().Errorf("error creating post (%s) : %v", post.Title, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -217,13 +219,13 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	postId, err := strconv.Atoi(id)
 	if err != nil {
-		logger.Sugar.Errorf("UpdatePost parameter was not an integer: %v", err)
+		postsApi.logger.Sugar().Errorf("UpdatePost parameter was not an integer: %v", err)
 		http.Error(w, "postId must be an integer", http.StatusBadRequest)
 		return
 	}
 	err = json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
-		logger.Sugar.Errorf("Error decoding the post request body: %v", err)
+		postsApi.logger.Sugar().Errorf("Error decoding the post request body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -231,7 +233,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 	err = validatePost(post)
 	if err != nil {
-		logger.Sugar.Errorf("the post was not formatter correctly: %v", err)
+		postsApi.logger.Sugar().Errorf("the post was not formatter correctly: %v", err)
 
 		b, _ := json.Marshal(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -240,7 +242,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	}
 	updatedPost, err := postsApi.postsRepository.UpdatePost(post, postId, claims.Sub)
 	if err != nil {
-		logger.Sugar.Errorf("error updating post (%s) : %v", post.Title, err)
+		postsApi.logger.Sugar().Errorf("error updating post (%s) : %v", post.Title, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)
@@ -249,7 +251,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	b, err := json.Marshal(updatedPost)
 	if err != nil {
-		logger.Sugar.Errorf("error unmarshalling updated post (%s) : %v", post.Title, err)
+		postsApi.logger.Sugar().Errorf("error unmarshalling updated post (%s) : %v", post.Title, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		b, _ := json.Marshal(err)
 		w.Write(b)

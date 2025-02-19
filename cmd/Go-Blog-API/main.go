@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/KylerJacobson/Go-Blog-API/internal/services/azure"
 	"log"
 	"net/http"
 	"os"
@@ -20,22 +21,24 @@ import (
 
 func main() {
 	env := os.Getenv("ENVIRONMENT")
-	err := logger.Init(env)
+	zapLogger, err := logger.NewLogger(env)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer logger.Sync()
-	dbPool := config.GetDBConn()
+	defer zapLogger.Sync()
+	dbPool := config.GetDBConn(zapLogger)
 	defer dbPool.Close()
+
+	azureClient := azure.NewAzureClient(zapLogger)
 
 	session.Init()
 
 	mux := http.NewServeMux()
+	usersApi := users.New(usersRepo.New(dbPool, zapLogger), zapLogger)
+	postsApi := posts.New(postsRepo.New(dbPool, zapLogger), zapLogger)
 
-	postsApi := posts.New(postsRepo.New(dbPool))
-	usersApi := users.New(usersRepo.New(dbPool))
-	sessionApi := session.New(usersRepo.New(dbPool))
-	mediaApi := media.New(mediaRepo.New(dbPool))
+	sessionApi := session.New(usersRepo.New(dbPool, zapLogger), zapLogger)
+	mediaApi := media.New(mediaRepo.New(dbPool, zapLogger), zapLogger, azureClient)
 
 	// ---------------------------- Posts ----------------------------
 	mux.HandleFunc("GET /api/posts", postsApi.GetPosts)
@@ -61,8 +64,8 @@ func main() {
 	mux.HandleFunc("POST /api/media", mediaApi.UploadMedia)
 	mux.HandleFunc("GET /api/media/{id}", mediaApi.GetMediaByPostId)
 
-	logger.Sugar.Infof("Logging level set to %s", env)
-	logger.Sugar.Infof("listening on port: %d", 8080)
+	zapLogger.Sugar().Infof("Logging level set to %s", env)
+	zapLogger.Sugar().Infof("listening on port: %d", 8080)
 	http.ListenAndServe(":8080", session.Manager.LoadAndSave(mux))
 	// log.Fatal(http.ListenAndServe(":8080", nil))
 }

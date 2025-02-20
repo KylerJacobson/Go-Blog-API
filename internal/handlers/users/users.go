@@ -166,9 +166,12 @@ func (usersApi *usersApi) LoginUser(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&userLoginRequest)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("Error decoding the user request body: %v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		b, _ := json.Marshal(err)
-		w.Write(b)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if userLoginRequest.Email == "" || userLoginRequest.Password == "" {
+		usersApi.logger.Sugar().Errorf("error validating user login request: %v", err)
+		http.Error(w, "Invalid request body - email or password is missing", http.StatusBadRequest)
 		return
 	}
 	user, err := usersApi.usersRepository.LoginUser(userLoginRequest)

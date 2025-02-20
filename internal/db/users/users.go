@@ -37,7 +37,7 @@ func (repository *usersRepository) GetUserById(id int) (*user_models.User, error
 	repository.logger.Sugar().Infof("getting user from the database")
 
 	rows, err := repository.conn.Query(
-		context.TODO(), `SELECT id, first_name, last_name, email, password, created_at, updated_at, role, email_notification FROM users WHERE id = $1;`, id,
+		context.TODO(), `SELECT id, first_name, last_name, email, role, email_notification FROM users WHERE id = $1;`, id,
 	)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (repository *usersRepository) UpdateUser(user user_models.UserUpdate) error
 }
 
 func (repository *usersRepository) GetUserByEmail(email string) (*user_models.User, error) {
-	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, password, created_at, updated_at, role, email_notification FROM users WHERE email = $1`, email)
+	rows, err := repository.conn.Query(context.TODO(), `SELECT id, first_name, last_name, email, role, email_notification FROM users WHERE email = $1`, email)
 	if err != nil {
 		repository.logger.Sugar().Errorf("Error retrieving user (%s) from the database: %v", email, err)
 		return nil, err

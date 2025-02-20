@@ -56,6 +56,8 @@ func main() {
 	mux.HandleFunc("PUT /api/user/{id}", usersApi.UpdateUser)
 	mux.HandleFunc("DELETE /api/users/{id}", usersApi.DeleteUserById)
 
+	// ---------------------------- Session ----------------------------
+
 	mux.HandleFunc("POST /api/session", sessionApi.CreateSession)
 	mux.HandleFunc("POST /api/verifyToken", authorization.VerifyToken)
 	mux.HandleFunc("DELETE /api/session", sessionApi.DeleteSession)

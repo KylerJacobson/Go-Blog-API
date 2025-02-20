@@ -215,7 +215,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(token)
 	claims := authorization.DecodeToken(token)
 	fmt.Println(claims)
-	var post post_models.PostRequestBody
+	var post post_models.FrontendPostRequest
 	id := r.PathValue("id")
 	postId, err := strconv.Atoi(id)
 	if err != nil {
@@ -231,7 +231,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
-	err = validatePost(post)
+	err = validatePost(post.PostRequestBody)
 	if err != nil {
 		postsApi.logger.Sugar().Errorf("the post was not formatter correctly: %v", err)
 
@@ -240,7 +240,7 @@ func (postsApi *postsApi) UpdatePost(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
-	updatedPost, err := postsApi.postsRepository.UpdatePost(post, postId, claims.Sub)
+	updatedPost, err := postsApi.postsRepository.UpdatePost(post.PostRequestBody, postId, claims.Sub)
 	if err != nil {
 		postsApi.logger.Sugar().Errorf("error updating post (%s) : %v", post.Title, err)
 		w.WriteHeader(http.StatusInternalServerError)

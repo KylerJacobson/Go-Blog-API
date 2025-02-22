@@ -100,25 +100,25 @@ func (usersApi *usersApi) DeleteUserById(w http.ResponseWriter, r *http.Request)
 }
 
 func (usersApi *usersApi) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var userRequest users.UserCreate
-	err := json.NewDecoder(r.Body).Decode(&userRequest)
+	var accountCreationRequest users.AccountCreationRequest
+	err := json.NewDecoder(r.Body).Decode(&accountCreationRequest)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("Error decoding the user request body: %v", err)
 		httperr.Write(w, httperr.BadRequest("Invalid request body", err.Error()))
 		return
 	}
 
-	err = validateCreateUserRequest(userRequest)
+	err = validateCreateUserRequest(accountCreationRequest.User)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("error validating user create request", err)
 		httperr.Write(w, httperr.BadRequest("Invalid request body", err.Error()))
 		return
 	}
 
-	userId, err := usersApi.usersRepository.CreateUser(userRequest)
+	userId, err := usersApi.usersRepository.CreateUser(accountCreationRequest.User)
 	if err != nil {
-		usersApi.logger.Sugar().Errorf("error creating user for %s %s : %v", userRequest.FirstName, userRequest.LastName, err)
-		httperr.Write(w, httperr.Internal("failed to create user", err.Error()))
+		usersApi.logger.Sugar().Errorf("error creating user for %s %s : %v", accountCreationRequest.User.FirstName, accountCreationRequest.User.LastName, err)
+		httperr.Write(w, httperr.New(http.StatusInternalServerError, "failed to create user", ""))
 		return
 	}
 
@@ -199,7 +199,9 @@ func (usersApi *usersApi) LoginUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (usersApi *usersApi) ListUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := usersApi.usersRepository.GetAllUsers()
+
+	// Check if user is logged in and has admin role
+	allUsers, err := usersApi.usersRepository.GetAllUsers()
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("error listing users: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -207,7 +209,7 @@ func (usersApi *usersApi) ListUsers(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
-	b, err := json.Marshal(users)
+	b, err := json.Marshal(allUsers)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("error marshalling the users list: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -220,8 +222,8 @@ func (usersApi *usersApi) ListUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (usersApi *usersApi) UpdateUser(w http.ResponseWriter, r *http.Request) {
-	var userUpdateRequest users.UserUpdateRequest
-	err := json.NewDecoder(r.Body).Decode(&userUpdateRequest)
+	var userUpdate users.UserUpdate
+	err := json.NewDecoder(r.Body).Decode(&userUpdate)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("Error decoding the user request body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -230,7 +232,7 @@ func (usersApi *usersApi) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// validate user update request
-	err = usersApi.validateUpdateUserRequest(r, userUpdateRequest)
+	err = usersApi.validateUpdateUserRequest(r, userUpdate)
 	if err != nil {
 		usersApi.logger.Sugar().Errorf("error validating user update request: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -238,10 +240,11 @@ func (usersApi *usersApi) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		w.Write(b)
 		return
 	}
-	err = usersApi.usersRepository.UpdateUser(userUpdateRequest.User)
+
+	err = usersApi.usersRepository.UpdateUser(userUpdate)
 	if err != nil {
 		if errors.Is(err, pgxv5.ErrNoRows) {
-			usersApi.logger.Sugar().Infof("User with id: %s does not exist in the database", userUpdateRequest.User.Id)
+			usersApi.logger.Sugar().Infof("User with id: %s does not exist in the database", userUpdate.Id)
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
@@ -256,8 +259,13 @@ func (usersApi *usersApi) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 func (usersApi *usersApi) GetUserFromSession(w http.ResponseWriter, r *http.Request) {
 
+	loggedIn := session.Manager.Exists(r.Context(), "session_token")
+	if !loggedIn {
+		//usersApi.logger.Sugar().Errorf("user not logged in")
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	token := session.Manager.GetString(r.Context(), "session_token")
-
 	fmt.Println(token)
 	claims := authorization.DecodeToken(token)
 	fmt.Println(claims)
@@ -290,7 +298,7 @@ func (usersApi *usersApi) GetUserFromSession(w http.ResponseWriter, r *http.Requ
 	w.Write(b)
 }
 
-func (usersApi *usersApi) validateUpdateUserRequest(r *http.Request, userUpdateRequest users.UserUpdateRequest) error {
+func (usersApi *usersApi) validateUpdateUserRequest(r *http.Request, userUpdate users.UserUpdate) error {
 	// Check path value matches current userID
 	errors := []error{}
 	id := r.PathValue("id")
@@ -301,42 +309,32 @@ func (usersApi *usersApi) validateUpdateUserRequest(r *http.Request, userUpdateR
 	}
 	token := session.Manager.GetString(r.Context(), "session_token")
 	claims := authorization.DecodeToken(token)
-	if claims.Sub != userID {
+	if claims.Sub != userID && claims.Role != 1 {
 		usersApi.logger.Sugar().Errorf("user %d attempted to update user %d", claims.Sub, userID)
 		errors = append(errors, err)
 	}
 
-	// Validate fields
-	if userUpdateRequest.User.FirstName == "" {
-		errors = append(errors, fmt.Errorf("first name is required"))
-	}
-	if userUpdateRequest.User.LastName == "" {
-		errors = append(errors, fmt.Errorf("last name is required"))
-	}
-	if userUpdateRequest.User.Email == "" {
-		errors = append(errors, fmt.Errorf("email is required"))
-	}
-	if userUpdateRequest.Role == "" {
-		errors = append(errors, fmt.Errorf("logged in user role is required"))
-	}
-	if userUpdateRequest.User.Role == "" {
-		errors = append(errors, fmt.Errorf("new role is required"))
-	}
-	// Using strings here because the nil value of an int is a valid role
-	newRoleRequest, err := strconv.Atoi(userUpdateRequest.User.Role)
-	if err != nil {
-		usersApi.logger.Sugar().Errorf("new user role is not an integer: %v", err)
-		errors = append(errors, err)
-	}
-	currentUserRole, err := strconv.Atoi(userUpdateRequest.Role)
-	if err != nil {
-		usersApi.logger.Sugar().Errorf("current user role is not an integer: %v", err)
-		errors = append(errors, err)
-	}
-	if currentUserRole == 1 && newRoleRequest != 1 {
+	// Validate permission escalation / deescalation
+	if claims.Sub == 1 && userID == 1 && userUpdate.Role != 1 {
 		usersApi.logger.Sugar().Errorf("user is already an admin, cannot decrease permission: %v", err)
 		errors = append(errors, err)
 	}
+	if claims.Role != 1 && userUpdate.Role == 1 {
+		usersApi.logger.Sugar().Errorf("access denied: %v", err)
+		errors = append(errors, err)
+	}
+
+	// Validate fields
+	if userUpdate.FirstName == "" {
+		errors = append(errors, fmt.Errorf("first name is required"))
+	}
+	if userUpdate.LastName == "" {
+		errors = append(errors, fmt.Errorf("last name is required"))
+	}
+	if userUpdate.Email == "" {
+		errors = append(errors, fmt.Errorf("email is required"))
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("validation failed")
 	}

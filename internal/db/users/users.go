@@ -3,7 +3,6 @@ package users
 import (
 	"context"
 	"errors"
-
 	user_models "github.com/KylerJacobson/Go-Blog-API/internal/api/types/users"
 	"github.com/KylerJacobson/Go-Blog-API/logger"
 	"github.com/jackc/pgx/v5"

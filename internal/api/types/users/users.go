@@ -22,6 +22,9 @@ type User struct {
 	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
 
+type AccountCreationRequest struct {
+	User UserCreate `json:"accountDetails"`
+}
 type UserCreate struct {
 	FirstName         string `json:"firstName" db:"first_name"`
 	LastName          string `json:"lastName" db:"last_name"`
@@ -31,16 +34,12 @@ type UserCreate struct {
 	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
 
-type UserUpdateRequest struct {
-	User UserUpdate `json:"user"`
-	Role string     `json:"role"`
-}
 type UserUpdate struct {
 	Id                string `json:"id" db:"id"`
 	FirstName         string `json:"firstName" db:"first_name"`
 	LastName          string `json:"lastName" db:"last_name"`
 	Email             string `json:"email" db:"email"`
-	Role              string `json:"role" db:"role"`
+	Role              int    `json:"role" db:"role"`
 	EmailNotification bool   `json:"emailNotification" db:"email_notification"`
 }
 

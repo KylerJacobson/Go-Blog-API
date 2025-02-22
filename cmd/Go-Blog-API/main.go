@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/KylerJacobson/Go-Blog-API/internal/middleware"
 	"github.com/KylerJacobson/Go-Blog-API/internal/services/azure"
 	"log"
 	"net/http"
@@ -52,9 +53,13 @@ func main() {
 	mux.HandleFunc("POST /api/user", usersApi.CreateUser)
 	mux.HandleFunc("GET /api/user", usersApi.GetUserFromSession)
 	mux.HandleFunc("GET /api/user/{id}", usersApi.GetUserById)
-	mux.HandleFunc("GET /api/user/list", usersApi.ListUsers)
 	mux.HandleFunc("PUT /api/user/{id}", usersApi.UpdateUser)
 	mux.HandleFunc("DELETE /api/user/{id}", usersApi.DeleteUserById)
+
+	// TODO Create admin route with authorization and update user list
+
+	// ---------------------------- Admin ----------------------------
+	mux.HandleFunc("GET /api/user/list", http.HandlerFunc(middleware.AuthAdminMiddleware(usersApi.ListUsers)))
 
 	// ---------------------------- Session ----------------------------
 
